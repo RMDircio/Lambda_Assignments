@@ -1,48 +1,148 @@
+import os
 import sqlite3
 
-#  1) How many total characters are there? 279
-SELECT COUNT(DISTINCT name) from charactercreator_character
-# to find unique values of names
-SELECT name, count(*) from charactercreator_character GROUP BY name 
 
-# 2) How many of each specific subclass?
-```Cleric``` # 75
-SELECT COUNT(DISTINCT character_ptr_id) FROM charactercreator_cleric
+DB_FILEPATH = os.path.join(os.path.dirname(__file__), 'rpg_db.sqlite3')
 
-```Fighter``` # 68
-SELECT COUNT(DISTINCT character_ptr_id) FROM charactercreator_fighter
-``` Mage``` # 108
-SELECT COUNT(DISTINCT character_ptr_id) FROM charactercreator_mage
-```Necromancer``` # 11
-SELECT COUNT(DISTINCT mage_ptr_id) FROM charactercreator_necromancer
-```Thief``` # 51
-SELECT COUNT(DISTINCT character_ptr_id) FROM charactercreator_thief
+connection = sqlite3.connect(DB_FILEPATH)
+connection.row_factory = sqlite3.Row
+print('CONNECTION:', connection)
 
-# 3) How many total items?
-```Total items + weapons``` #  172 
-SELECT COUNT(DISTINCT name) FROM armory_item
-# add these two total together for all items
-```Total Weapons``` # 37
-SELECT COUNT(DISTINCT item_ptr_id) FROM armory_weapon
+cursor = connection.cursor()
+print('CURSOR', cursor)
 
-# 4) How many of the Items are weapons? 
-```How many are not?```` # 37
-SELECT COUNT(DISTINCT item_ptr_id) FROM armory_weapon
-
-# 5) How many Items does each character have? (Return first 20 rows)
+queries = [
+'''
+SELECT
+	COUNT(DISTINCT name)
+FROM
+	charactercreator_character
+;
+''' ,
+'''
+SELECT
+	name,
+	COUNT(*)
+FROM
+	charactercreator_character
+GROUP BY
+	name
+;
+''' ,
+'''
+SELECT
+	COUNT(DISTINCT character_ptr_id)
+FROM
+	charactercreator_cleric
+;
+''' ,
+'''
+SELECT 
+	COUNT(DISTINCT character_ptr_id)
+FROM 
+	charactercreator_fighter
+;
+''' ,
+'''
+SELECT 
+	COUNT(DISTINCT character_ptr_id) 
+FROM
+	charactercreator_mage
+;
+''' ,
+'''
+SELECT 
+	COUNT(DISTINCT mage_ptr_id)
+FROM 
+	charactercreator_necromancer
+;
+''' ,
+'''
+SELECT
+	COUNT(DISTINCT character_ptr_id)
+FROM
+	charactercreator_thief
+;
+''' ,
+'''
+SELECT
+	COUNT(DISTINCT name)
+FROM 
+	armory_item
+;
+''' ,
+'''
+SELECT
+	COUNT(DISTINCT item_ptr_id)
+FROM
+	armory_weapon
+;
+''' ,
+'''
 SELECT 
 	character_id,
 	count(*)
-FROM charactercreator_character_inventory
-GROUP BY character_id
-LIMIT 20
+FROM 
+	charactercreator_character_inventory
+GROUP BY
+	character_id
+LIMIT 
+	20
+;
+''' ,
+'''
+SELECT
+	c.character_id
+	,c.name as character_name
+	,count(distinct w.item_ptr_id) as weapon_count
+FROM 
+	charactercreator_character as c
+LEFT JOIN 
+	charactercreator_character_inventory as inv ON c.character_id = inv.character_id
+LEFT JOIN
+	armory_weapon as w ON w.item_ptr_id = inv.item_id
+GROUP BY 
+	c.character_id
+LIMIT
+	20
+;
+''' ,
+'''
+SELECT
+	AVG(item_counts.item_count)
+FROM
+	(
+		SELECT 
+		cci.character_id,
+		COUNT(*) as item_count
+		FROM charactercreator_character_inventory as cci
+		GROUP BY cci.character_id
+	) AS item_counts
+;
+''' ,
+'''
+SELECT
+	AVG(weapon_count)
+FROM
+	(
+	SELECT
+		cci.character_id,
+		COUNT(*) AS weapon_count
+	FROM 
+		charactercreator_character_inventory AS cci
+		LEFT OUTER JOIN armory_weapon AS AW
+		ON cci.item_id = AW.item_ptr_id
+	WHERE 
+		AW.item_ptr_id IS  NOT NULL
+	GROUP BY
+		cci.character_id
+	)
+;
+''']
 
-# 6) How many Weapons does each character have? (Return first 20 rows)
-
-# 7) On average, how many Items does each Character have?
-
-# 8) On average, how many Weapons does each character have?
-
-
-
-
+for i, q in enumerate(queries):
+	result = cursor.execute(q).fetchall()
+	print(f'Query {i} Results:')
+	for row in result:
+		print(row[:])
+	print('\n')
